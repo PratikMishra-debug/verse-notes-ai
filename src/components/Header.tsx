@@ -14,7 +14,7 @@ export const Header = () => {
                 <BookOpen className="h-6 w-6 text-white" />
               </div>
               <h1 className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-                StudyShare
+                Quillix
               </h1>
             </div>
           </div>
