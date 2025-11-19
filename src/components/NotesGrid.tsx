@@ -1,221 +1,178 @@
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, Download, Eye, FileText, Users, Calendar } from "lucide-react";
+import { FileText, Download, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
-// Mock data for notes
-const mockNotes = [
-  {
-    id: 1,
-    title: "Advanced Calculus - Integration Techniques",
-    subject: "Mathematics",
-    course: "MATH 301",
-    author: "Sarah Chen",
-    authorAvatar: "/api/placeholder/32/32",
-    rating: 4.8,
-    downloads: 234,
-    views: 567,
-    uploadDate: "2 days ago",
-    fileType: "PDF",
-    tags: ["calculus", "integration", "derivatives"],
-    description: "Comprehensive notes covering advanced integration techniques including substitution, integration by parts, and partial fractions."
-  },
-  {
-    id: 2,
-    title: "Organic Chemistry Reaction Mechanisms", 
-    subject: "Chemistry",
-    course: "CHEM 205",
-    author: "Alex Johnson",
-    authorAvatar: "/api/placeholder/32/32",
-    rating: 4.9,
-    downloads: 189,
-    views: 423,
-    uploadDate: "1 week ago",
-    fileType: "PPT",
-    tags: ["organic", "reactions", "mechanisms"],
-    description: "Detailed presentation on organic reaction mechanisms with step-by-step explanations and practice problems."
-  },
-  {
-    id: 3,
-    title: "Machine Learning Algorithms Overview",
-    subject: "Computer Science", 
-    course: "CS 485",
-    author: "Dr. Maria Garcia",
-    authorAvatar: "/api/placeholder/32/32",
-    rating: 5.0,
-    downloads: 456,
-    views: 892,
-    uploadDate: "3 days ago",
-    fileType: "PDF",
-    tags: ["ml", "algorithms", "ai"],
-    description: "Complete overview of machine learning algorithms including supervised, unsupervised, and reinforcement learning approaches."
-  },
-  {
-    id: 4,
-    title: "World War II Historical Analysis",
-    subject: "History",
-    course: "HIST 120",
-    author: "Emma Wilson",
-    authorAvatar: "/api/placeholder/32/32",
-    rating: 4.7,
-    downloads: 167,
-    views: 334,
-    uploadDate: "5 days ago",
-    fileType: "DOCX",
-    tags: ["wwii", "history", "analysis"],
-    description: "In-depth analysis of World War II causes, major events, and global impact with primary source references."
-  },
-  {
-    id: 5,
-    title: "Microeconomics Supply & Demand",
-    subject: "Economics",
-    course: "ECON 101",
-    author: "James Liu",
-    authorAvatar: "/api/placeholder/32/32",
-    rating: 4.6,
-    downloads: 298,
-    views: 445,
-    uploadDate: "1 week ago",
-    fileType: "PDF",
-    tags: ["economics", "supply", "demand"],
-    description: "Fundamental concepts of supply and demand with real-world examples and graphical representations."
-  },
-  {
-    id: 6,
-    title: "Psychology Research Methods",
-    subject: "Psychology", 
-    course: "PSYC 200",
-    author: "Lisa Rodriguez",
-    authorAvatar: "/api/placeholder/32/32",
-    rating: 4.8,
-    downloads: 223,
-    views: 378,
-    uploadDate: "4 days ago",
-    fileType: "PDF",
-    tags: ["psychology", "research", "methods"],
-    description: "Comprehensive guide to psychological research methods including experimental design and statistical analysis."
-  }
-];
+interface Note {
+  id: string;
+  title: string;
+  description: string | null;
+  subject: string | null;
+  category: string | null;
+  file_url: string | null;
+  file_name: string | null;
+  created_at: string;
+}
 
-const getFileIcon = (fileType: string) => {
-  return <FileText className="h-4 w-4" />;
-};
+interface NotesGridProps {
+  searchQuery: string;
+  refreshTrigger: number;
+}
 
-const getSubjectColor = (subject: string) => {
-  const colors: { [key: string]: string } = {
-    "Mathematics": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-    "Chemistry": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", 
-    "Computer Science": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-    "History": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    "Economics": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    "Psychology": "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
+export const NotesGrid = ({ searchQuery, refreshTrigger }: NotesGridProps) => {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchNotes();
+    }
+  }, [user, refreshTrigger]);
+
+  const fetchNotes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setNotes(data || []);
+    } catch (error: any) {
+      console.error("Error fetching notes:", error);
+      toast.error("Failed to load notes");
+    } finally {
+      setLoading(false);
+    }
   };
-  return colors[subject] || "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
-};
 
-export const NotesGrid = () => {
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("notes")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success("Note deleted successfully");
+      fetchNotes();
+    } catch (error: any) {
+      console.error("Error deleting note:", error);
+      toast.error("Failed to delete note");
+    }
+  };
+
+  const handleDownload = (fileUrl: string | null, fileName: string | null) => {
+    if (fileUrl) {
+      window.open(fileUrl, "_blank");
+    }
+  };
+
+  const filteredNotes = notes.filter((note) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      note.title.toLowerCase().includes(query) ||
+      note.description?.toLowerCase().includes(query) ||
+      note.subject?.toLowerCase().includes(query) ||
+      note.category?.toLowerCase().includes(query)
+    );
+  });
+
+  if (!user) {
+    return (
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto text-center">
+          <p className="text-muted-foreground">Please sign in to view and upload notes</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (loading) {
+    return (
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto text-center">
+          <p className="text-muted-foreground">Loading notes...</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="py-16 bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-foreground mb-4">
-            Featured Study Notes
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Discover high-quality notes shared by top students across various subjects and courses.
-          </p>
+    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-muted/30">
+      <div className="container mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">
+              {searchQuery ? "Search Results" : "Your Notes"}
+            </h2>
+            <p className="text-muted-foreground">
+              {filteredNotes.length} {filteredNotes.length === 1 ? "note" : "notes"} found
+            </p>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockNotes.map((note, index) => (
-            <Card 
-              key={note.id} 
-              className="group hover:shadow-large transition-all duration-300 hover:-translate-y-2 bg-gradient-card border-border animate-slide-up"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <CardHeader className="space-y-3">
-                <div className="flex items-start justify-between">
-                  <Badge className={getSubjectColor(note.subject)}>
-                    {note.subject}
-                  </Badge>
-                  <div className="flex items-center space-x-1 text-yellow-500">
-                    <Star className="h-4 w-4 fill-current" />
-                    <span className="text-sm font-medium">{note.rating}</span>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold text-card-foreground line-clamp-2 group-hover:text-primary transition-colors">
-                    {note.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">{note.course}</p>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {note.description}
-                </p>
-
-                <div className="flex flex-wrap gap-1">
-                  {note.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <Download className="h-4 w-4" />
-                      <span>{note.downloads}</span>
+        {filteredNotes.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              {searchQuery ? "No notes match your search" : "No notes uploaded yet. Click Upload to add your first note!"}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredNotes.map((note) => (
+              <Card key={note.id} className="overflow-hidden hover:shadow-lg transition-smooth group">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-smooth">
+                      <FileText className="h-6 w-6 text-primary" />
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Eye className="h-4 w-4" />
-                      <span>{note.views}</span>
-                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(note.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    {getFileIcon(note.fileType)}
-                    <span>{note.fileType}</span>
+                  
+                  <h3 className="font-semibold text-lg mb-2 line-clamp-2">{note.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                    {note.description || "No description"}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {note.subject && <Badge variant="secondary">{note.subject}</Badge>}
+                    {note.category && <Badge variant="outline">{note.category}</Badge>}
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {new Date(note.created_at).toLocaleDateString()}
+                    </span>
+                    <Button 
+                      variant="accent" 
+                      size="sm"
+                      onClick={() => handleDownload(note.file_url, note.file_name)}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </Button>
                   </div>
                 </div>
-              </CardContent>
-
-              <CardFooter className="flex items-center justify-between pt-4 border-t border-border">
-                <div className="flex items-center space-x-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={note.authorAvatar} alt={note.author} />
-                    <AvatarFallback className="text-xs bg-muted">
-                      {note.author.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-xs text-muted-foreground">
-                    <div className="font-medium">{note.author}</div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{note.uploadDate}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <Button variant="card" size="sm" className="shadow-soft">
-                  <Download className="h-4 w-4 mr-1" />
-                  Download
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-
-        <div className="text-center mt-12">
-          <Button variant="outline" size="lg" className="px-8">
-            <Users className="h-5 w-5 mr-2" />
-            Explore All Notes
-          </Button>
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

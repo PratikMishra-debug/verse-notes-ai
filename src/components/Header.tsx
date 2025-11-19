@@ -1,8 +1,27 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Upload, User, BookOpen, Star } from "lucide-react";
+import { Search, Upload, User, BookOpen, LogOut } from "lucide-react";
+import { UploadDialog } from "./UploadDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
-export const Header = () => {
+interface HeaderProps {
+  onSearch: (query: string) => void;
+  onUploadSuccess: () => void;
+}
+
+export const Header = ({ onSearch, onUploadSuccess }: HeaderProps) => {
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    onSearch(value);
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,26 +45,51 @@ export const Header = () => {
               <Input
                 placeholder="Search notes, subjects, courses..."
                 className="pl-10 bg-muted/50 border-border hover:bg-muted transition-smooth focus:bg-background"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
           </div>
 
           {/* Navigation */}
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
-              <Star className="h-4 w-4 mr-2" />
-              My Notes
-            </Button>
-            <Button variant="accent" size="sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </Button>
-            <Button variant="ghost" size="icon">
-              <User className="h-4 w-4" />
-            </Button>
+            {user ? (
+              <>
+                <Button 
+                  variant="accent" 
+                  size="sm"
+                  onClick={() => setUploadOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={signOut}
+                  title="Sign Out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="accent" 
+                size="sm"
+                onClick={() => navigate("/auth")}
+              >
+                <User className="h-4 w-4 mr-2" />
+                Sign In
+              </Button>
+            )}
           </div>
         </div>
       </div>
+      <UploadDialog 
+        open={uploadOpen} 
+        onOpenChange={setUploadOpen}
+        onSuccess={onUploadSuccess}
+      />
     </header>
   );
 };
